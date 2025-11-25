@@ -21,7 +21,10 @@ def ocr_with_api(image, language='vie+eng'):
     try:
         # Chuyển image sang base64
         buffered = io.BytesIO()
-        image.save(buffered, format="PNG")
+        # Convert ảnh sang RGB nếu cần
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        image.save(buffered, format="JPEG", quality=85)
         img_str = base64.b64encode(buffered.getvalue()).decode()
         
         # Map ngôn ngữ
@@ -34,22 +37,28 @@ def ocr_with_api(image, language='vie+eng'):
         
         # Gọi OCR.space API
         payload = {
-            'base64Image': f'data:image/png;base64,{img_str}',
+            'base64Image': f'data:image/jpeg;base64,{img_str}',
             'apikey': 'K87283542388957',  # API key miễn phí
             'language': lang_code,
             'isOverlayRequired': False,
-            'OCREngine': 2
+            'OCREngine': 2,
+            'scale': True
         }
         
-        response = requests.post('https://api.ocr.space/parse/image', data=payload, timeout=30)
+        response = requests.post('https://api.ocr.space/parse/image', data=payload, timeout=60)
         result = response.json()
         
         if result.get('IsErroredOnProcessing', False):
-            return None, result.get('ErrorMessage', 'Unknown error from OCR API')
-        else:
+            error_msg = result.get('ErrorMessage', 'Unknown error from OCR API')
+            return None, error_msg
+        elif 'ParsedResults' in result and len(result['ParsedResults']) > 0:
             parsed_text = result['ParsedResults'][0]['ParsedText']
             return parsed_text.strip(), None
+        else:
+            return None, "No text found in image"
             
+    except requests.exceptions.Timeout:
+        return None, "OCR API timeout - please try again"
     except Exception as e:
         return None, f"API Error: {str(e)}"
 
@@ -107,7 +116,11 @@ def ocr():
 @app.route('/health')
 def health():
     """Kiểm tra trạng thái server"""
-    return jsonify({'status': 'OK', 'ocr_engine': 'ocr.space_api'}), 200
+    return jsonify({
+        'status': 'OK', 
+        'ocr_engine': 'ocr.space_api',
+        'message': 'Server is running with OCR API'
+    }), 200
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

@@ -13,7 +13,15 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp'}
 
 # Cấu hình Tesseract (Windows)
 # Nếu dùng Windows, bỏ comment dòng dưới và điều chỉnh đường dẫn
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+try:
+    import tesseract
+    # pytesseract-pack sẽ tự động xử lý
+except ImportError:
+    # Fallback cho local development
+    if os.name == 'nt':  # Windows
+        pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+    else:
+        pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
 
 def allowed_file(filename):
     """Kiểm tra file có đúng định dạng không"""
